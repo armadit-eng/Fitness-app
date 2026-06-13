@@ -1,0 +1,1017 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>PaceLab</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap');
+
+:root {
+  --ink:#0d0d12;--paper:#111116;--card:#18181f;--line:#252530;
+  --cyan:#00c9ab;--violet:#7c6af7;--amber:#f5a623;--rose:#f55;
+  --dim:#55556a;--text:#e2e2ee;--sub:#9090a8;
+  --z1:#3b82f6;--z2:#22c55e;--z3:#eab308;--z4:#f97316;--z5:#ef4444;
+}
+.light {
+  --ink:#f0f2f5;--paper:#ffffff;--card:#f8f9fb;--line:#dde1ea;
+  --cyan:#009e88;--violet:#5b4de0;--amber:#d4870a;--rose:#d93636;
+  --dim:#8892a4;--text:#1a1d26;--sub:#4a5168;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;background:var(--ink);color:var(--text);font-family:'DM Sans',sans-serif;overflow-x:hidden;transition:background .25s,color .25s;}
+::-webkit-scrollbar{width:3px;} ::-webkit-scrollbar-track{background:transparent;} ::-webkit-scrollbar-thumb{background:var(--line);}
+
+/* EMPTY STATE */
+#empty-state{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  min-height:100vh;padding:2rem;text-align:center;
+}
+.brand{font-family:'DM Mono',monospace;font-size:2.4rem;font-weight:500;letter-spacing:-1px;color:var(--cyan);margin-bottom:.3rem;}
+.brand-sub{color:var(--dim);font-size:.85rem;letter-spacing:.12em;text-transform:uppercase;margin-bottom:3rem;}
+
+.drop-hero{
+  width:100%;max-width:360px;border:1.5px dashed var(--line);border-radius:20px;
+  padding:2.5rem 2rem;cursor:pointer;transition:all .25s;position:relative;overflow:hidden;
+}
+.drop-hero:hover,.drop-hero.drag{border-color:var(--cyan);background:rgba(0,229,195,.04);}
+.drop-hero::before{content:'';position:absolute;inset:0;background:radial-gradient(circle at 50% 0%,rgba(0,229,195,.06),transparent 70%);pointer-events:none;}
+.drop-icon{font-size:2.8rem;margin-bottom:1rem;display:block;}
+.drop-title{font-size:1rem;font-weight:600;color:var(--text);margin-bottom:.5rem;}
+.drop-hint{font-size:.8rem;color:var(--dim);line-height:1.6;}
+.drop-hint em{color:var(--cyan);font-style:normal;}
+#file-input{display:none;}
+
+.history-hint{margin-top:1.5rem;font-size:.78rem;color:var(--dim);}
+
+/* MAIN APP */
+#app{display:none;min-height:100vh;}
+
+/* TOPBAR */
+.topbar{
+  position:sticky;top:0;z-index:50;
+  background:rgba(240,242,245,.92);
+  backdrop-filter:blur(16px);
+  border-bottom:1px solid var(--line);
+  padding:.7rem 1rem;
+  display:flex;align-items:center;gap:.8rem;
+}
+.light .topbar{background:rgba(240,242,245,.92);}
+html:not(.light) .topbar{background:rgba(13,13,18,.9);}
+.topbar-brand{font-family:'DM Mono',monospace;font-size:1rem;color:var(--cyan);font-weight:500;}
+.topbar-spacer{flex:1;}
+.btn-theme{
+  width:34px;height:34px;border-radius:8px;border:1px solid var(--line);
+  background:var(--card);color:var(--sub);font-size:1rem;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;transition:all .2s;flex-shrink:0;
+}
+.btn-theme:hover{border-color:var(--cyan);color:var(--cyan);}
+.btn-import{
+  padding:.35rem .9rem;border-radius:8px;
+  background:rgba(0,229,195,.12);border:1px solid rgba(0,229,195,.3);
+  color:var(--cyan);font-size:.78rem;font-weight:500;
+  font-family:'DM Sans',sans-serif;cursor:pointer;transition:all .2s;
+}
+.btn-import:hover{background:rgba(0,229,195,.2);}
+
+/* NAV */
+.nav{display:flex;gap:.2rem;padding:.6rem 1rem .3rem;overflow-x:auto;scrollbar-width:none;}
+.nav::-webkit-scrollbar{display:none;}
+.nav-btn{
+  flex-shrink:0;padding:.35rem .9rem;border-radius:7px;
+  border:none;background:transparent;color:var(--dim);
+  font-family:'DM Sans',sans-serif;font-size:.8rem;font-weight:500;cursor:pointer;transition:all .2s;
+}
+.nav-btn.on{background:var(--card);color:var(--cyan);border:1px solid var(--line);}
+.nav-btn:hover:not(.on){color:var(--text);}
+
+/* CONTENT */
+.pane{display:none;padding:.8rem 1rem 5rem;}
+.pane.on{display:block;}
+
+/* CARDS */
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:1rem;margin-bottom:.75rem;}
+.card-title{font-size:.68rem;text-transform:uppercase;letter-spacing:.1em;color:var(--dim);margin-bottom:.8rem;}
+
+/* STAT GRID */
+.sg{display:grid;grid-template-columns:repeat(2,1fr);gap:.5rem;margin-bottom:.75rem;}
+.sg3{display:grid;grid-template-columns:repeat(3,1fr);gap:.5rem;margin-bottom:.75rem;}
+.sbox{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:.75rem .8rem;}
+.sbox-l{font-size:.65rem;text-transform:uppercase;letter-spacing:.07em;color:var(--dim);margin-bottom:.25rem;}
+.sbox-v{font-family:'DM Mono',monospace;font-size:1.35rem;font-weight:500;color:var(--text);line-height:1;}
+.sbox-u{font-size:.7rem;color:var(--dim);margin-left:.15rem;}
+.sbox-accent{border-top:2px solid var(--cyan);}
+
+/* ACTIVITY LIST */
+.act-row{
+  display:flex;align-items:center;gap:.75rem;
+  padding:.85rem 1rem;background:var(--card);border:1px solid var(--line);
+  border-radius:12px;margin-bottom:.5rem;cursor:pointer;transition:border-color .2s;
+}
+.act-row:hover{border-color:var(--cyan);}
+.act-ico{width:36px;height:36px;border-radius:9px;background:var(--paper);display:flex;align-items:center;justify-content:center;font-size:1rem;flex-shrink:0;}
+.act-mid{flex:1;min-width:0;}
+.act-name{font-size:.88rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.act-meta{font-size:.72rem;color:var(--dim);margin-top:.15rem;}
+.act-right{text-align:right;flex-shrink:0;}
+.act-dist{font-family:'DM Mono',monospace;font-size:.9rem;font-weight:500;color:var(--cyan);}
+.act-pace{font-size:.72rem;color:var(--dim);}
+
+/* CHART WRAP */
+.chart-wrap{position:relative;height:160px;margin-top:.5rem;}
+.chart-wrap canvas{position:absolute;inset:0;}
+
+/* MODAL */
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:100;backdrop-filter:blur(6px);}
+.overlay.on{display:flex;align-items:flex-end;}
+.sheet{
+  background:var(--paper);border:1px solid var(--line);
+  border-radius:22px 22px 0 0;width:100%;max-height:90vh;
+  overflow-y:auto;padding:1.2rem 1rem 2rem;
+  animation:up .28s cubic-bezier(.16,1,.3,1);
+}
+@keyframes up{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.sheet-handle{width:36px;height:4px;background:var(--line);border-radius:2px;margin:0 auto 1rem;}
+.sheet-nav{display:flex;gap:.25rem;margin-bottom:1rem;overflow-x:auto;scrollbar-width:none;}
+.sheet-nav::-webkit-scrollbar{display:none;}
+.snav-btn{flex-shrink:0;padding:.3rem .8rem;border-radius:6px;border:none;background:transparent;color:var(--dim);font-size:.78rem;font-family:'DM Sans',sans-serif;cursor:pointer;transition:all .2s;}
+.snav-btn.on{background:var(--card);color:var(--cyan);}
+
+/* ANALYSIS BLOCKS */
+.analysis-block{margin-bottom:1rem;}
+.ab-title{font-size:.68rem;text-transform:uppercase;letter-spacing:.1em;color:var(--dim);margin-bottom:.6rem;}
+
+/* VO2MAX RING */
+.vo2-wrap{display:flex;align-items:center;gap:1.2rem;padding:.5rem 0;}
+.vo2-ring{position:relative;width:80px;height:80px;flex-shrink:0;}
+.vo2-ring svg{transform:rotate(-90deg);}
+.vo2-ring-val{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;}
+.vo2-num{font-family:'DM Mono',monospace;font-size:1.3rem;font-weight:500;color:var(--cyan);line-height:1;}
+.vo2-unit{font-size:.6rem;color:var(--dim);}
+.vo2-info{flex:1;}
+.vo2-cat{font-size:.9rem;font-weight:600;margin-bottom:.25rem;}
+.vo2-desc{font-size:.75rem;color:var(--sub);line-height:1.5;}
+
+/* ZONES */
+.zone-bars{display:flex;flex-direction:column;gap:.4rem;}
+.zone-row{display:flex;align-items:center;gap:.6rem;}
+.zone-label{font-size:.72rem;color:var(--dim);width:22px;flex-shrink:0;font-family:'DM Mono',monospace;}
+.zone-bar-bg{flex:1;height:8px;background:var(--line);border-radius:4px;overflow:hidden;}
+.zone-bar-fill{height:100%;border-radius:4px;transition:width .6s ease;}
+.zone-pct{font-size:.7rem;color:var(--dim);width:32px;text-align:right;font-family:'DM Mono',monospace;}
+
+/* LAP TABLE */
+.lap-table{width:100%;border-collapse:collapse;font-size:.78rem;}
+.lap-table th{color:var(--dim);text-align:right;padding:.35rem .4rem;font-weight:500;font-size:.68rem;text-transform:uppercase;letter-spacing:.06em;}
+.lap-table th:first-child{text-align:left;}
+.lap-table td{padding:.35rem .4rem;text-align:right;border-top:1px solid var(--line);}
+.lap-table td:first-child{text-align:left;font-family:'DM Mono',monospace;}
+.lap-table tr:hover td{background:rgba(255,255,255,.02);}
+
+/* RACE PRED */
+.race-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:.5rem;}
+.race-box{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:.7rem .8rem;}
+.race-dist{font-size:.7rem;color:var(--dim);margin-bottom:.25rem;}
+.race-time{font-family:'DM Mono',monospace;font-size:1.05rem;font-weight:500;color:var(--text);}
+.race-pace{font-size:.7rem;color:var(--dim);margin-top:.15rem;}
+
+/* TREND */
+.trend-row{display:flex;justify-content:space-between;align-items:center;padding:.5rem 0;border-bottom:1px solid var(--line);}
+.trend-row:last-child{border-bottom:none;}
+.trend-date{font-size:.75rem;color:var(--dim);}
+.trend-val{font-family:'DM Mono',monospace;font-size:.9rem;}
+.trend-delta{font-size:.72rem;padding:.1rem .4rem;border-radius:4px;}
+.up{background:rgba(34,197,94,.15);color:#22c55e;}
+.dn{background:rgba(239,68,68,.15);color:#ef4444;}
+.eq{background:rgba(144,144,168,.1);color:var(--dim);}
+
+/* TOAST */
+.toast{position:fixed;bottom:4.5rem;left:50%;transform:translateX(-50%) translateY(16px);background:var(--card);border:1px solid var(--line);border-radius:10px;padding:.5rem 1.1rem;font-size:.8rem;opacity:0;transition:all .3s;z-index:200;pointer-events:none;}
+.toast.on{opacity:1;transform:translateX(-50%) translateY(0);}
+
+/* DELETE BTN */
+.btn-del{padding:.3rem .75rem;border-radius:7px;border:1px solid rgba(245,85,85,.3);background:rgba(245,85,85,.08);color:var(--rose);font-size:.75rem;font-family:'DM Sans',sans-serif;cursor:pointer;transition:all .2s;}
+.btn-del:hover{background:rgba(245,85,85,.18);}
+
+.empty-pane{text-align:center;padding:4rem 1rem;color:var(--dim);}
+.empty-pane .ei{font-size:2.2rem;margin-bottom:.8rem;}
+.empty-pane p{font-size:.83rem;line-height:1.6;}
+
+.badge{display:inline-block;padding:.1rem .45rem;border-radius:4px;font-size:.65rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;}
+.b-run{background:rgba(0,229,195,.12);color:var(--cyan);}
+.b-other{background:rgba(124,106,247,.12);color:var(--violet);}
+
+.maf-bar-wrap{margin-top:.5rem;}
+.maf-bar-bg{height:10px;background:var(--line);border-radius:5px;overflow:hidden;margin:.4rem 0;}
+.maf-bar-fill{height:100%;background:linear-gradient(90deg,var(--z2),var(--cyan));border-radius:5px;transition:width .7s ease;}
+.maf-labels{display:flex;justify-content:space-between;font-size:.7rem;color:var(--dim);}
+
+.trimp-chip{display:inline-block;padding:.2rem .6rem;border-radius:6px;font-family:'DM Mono',monospace;font-size:.82rem;font-weight:500;}
+.load-easy{background:rgba(34,197,94,.12);color:#22c55e;}
+.load-mod{background:rgba(234,179,8,.12);color:#eab308;}
+.load-hard{background:rgba(249,115,22,.12);color:#f97316;}
+.load-max{background:rgba(239,68,68,.12);color:#ef4444;}
+</style>
+</head>
+<body>
+
+<!-- EMPTY / LANDING -->
+<div id="empty-state">
+  <div class="brand">PaceLab</div>
+  <div class="brand-sub">Analisis lari dari FIT file</div>
+  <div class="drop-hero" id="drop-hero" onclick="document.getElementById('file-input').click()"
+       ondragover="ev(event)" ondrop="drop(event)" ondragleave="document.getElementById('drop-hero').classList.remove('drag')">
+    <span class="drop-icon">📂</span>
+    <div class="drop-title">Import file FIT dari COROS</div>
+    <div class="drop-hint">
+      Ketuk untuk pilih file, atau drag & drop<br><br>
+      Di COROS app → pilih aktivitas → <em>⋯ → Export</em>
+    </div>
+  </div>
+  <div class="history-hint" id="history-hint"></div>
+  <input type="file" id="file-input" accept=".fit" onchange="importFile(event)">
+</div>
+
+<!-- MAIN APP -->
+<div id="app">
+  <div class="topbar">
+    <span class="topbar-brand">PaceLab</span>
+    <span class="topbar-spacer"></span>
+    <button class="btn-theme" id="theme-btn" onclick="toggleTheme()" title="Toggle tema">🌙</button>
+    <button class="btn-import" onclick="document.getElementById('file-input2').click()">+ Import FIT</button>
+    <input type="file" id="file-input2" accept=".fit" style="display:none" onchange="importFile(event)">
+  </div>
+  <div class="nav">
+    <button class="nav-btn on" onclick="goPane('dashboard',this)">Dashboard</button>
+    <button class="nav-btn" onclick="goPane('activities',this)">Aktivitas</button>
+    <button class="nav-btn" onclick="goPane('trends',this)">Tren</button>
+  </div>
+
+  <!-- DASHBOARD -->
+  <div class="pane on" id="pane-dashboard">
+    <div id="db-content"></div>
+  </div>
+
+  <!-- ACTIVITIES -->
+  <div class="pane" id="pane-activities">
+    <div id="act-list"></div>
+  </div>
+
+  <!-- TRENDS -->
+  <div class="pane" id="pane-trends">
+    <div id="trends-content"></div>
+  </div>
+</div>
+
+<!-- ACTIVITY DETAIL SHEET -->
+<div class="overlay" id="overlay" onclick="closeSheet(event)">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-nav" id="sheet-nav"></div>
+    <div id="sheet-body"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── STORAGE ──────────────────────────────────────────────────────
+const DB_KEY = 'pacelab_v1';
+let db = JSON.parse(localStorage.getItem(DB_KEY) || '[]');
+function save() { localStorage.setItem(DB_KEY, JSON.stringify(db)); }
+
+// ── FIT PARSER ───────────────────────────────────────────────────
+function parseFIT(bytes) {
+  const d = new Uint8Array(bytes);
+  const hdrSize = d[0];
+  if (hdrSize < 12) throw new Error('Bukan file FIT valid');
+  const dataSize = (d[7]<<24)|(d[6]<<16)|(d[5]<<8)|d[4];
+  let off = hdrSize;
+  const end = hdrSize + dataSize;
+  const defs = {};
+
+  const res = { records:[], laps:[], session:{} };
+
+  while (off < end - 1) {
+    const rh = d[off++];
+    // compressed timestamp
+    if (rh & 0x80) {
+      const lt = (rh & 0x60) >> 5;
+      if (defs[lt]) off += defs[lt].rs;
+      continue;
+    }
+    const hasDev = (rh & 0x20) !== 0;
+    const isDef  = (rh & 0x40) !== 0;
+    const lt     = rh & 0x0f;
+
+    if (isDef) {
+      off++; // reserved
+      const arch = d[off++];
+      const gm = arch === 0 ? ((d[off+1]<<8)|d[off]) : ((d[off]<<8)|d[off+1]);
+      off += 2;
+      const nf = d[off++];
+      const fields = []; let rs = 0;
+      for (let i = 0; i < nf; i++) {
+        const fd = d[off++], sz = d[off++]; off++; // base type
+        fields.push({fd, sz}); rs += sz;
+      }
+      if (hasDev) {
+        const nd = d[off++];
+        for (let i = 0; i < nd; i++) { rs += d[off+1]; off += 3; }
+      }
+      defs[lt] = {gm, fields, rs, arch};
+    } else {
+      const def = defs[lt];
+      if (!def) { off++; continue; }
+      const rec = {};
+      for (const f of def.fields) {
+        let v = 0;
+        if (f.sz === 1) v = d[off];
+        else if (f.sz === 2) v = def.arch===0 ? ((d[off+1]<<8)|d[off]) : ((d[off]<<8)|d[off+1]);
+        else if (f.sz === 4) v = def.arch===0
+          ? (((d[off+3]<<24)|(d[off+2]<<16)|(d[off+1]<<8)|d[off])>>>0)
+          : (((d[off]<<24)|(d[off+1]<<16)|(d[off+2]<<8)|d[off+3])>>>0);
+        rec[f.fd] = v; off += f.sz;
+      }
+
+      // message 20 = data record
+      if (def.gm === 20) {
+        const ts = rec[253], hr = rec[3], cad = rec[4], spd = rec[6], dist = rec[5], pwr = rec[7], alt = rec[2];
+        if (ts && ts < 0xFFFFFFFF) {
+          const t = (ts + 631065600) * 1000;
+          const r = {t};
+          if (hr  !== undefined && hr  < 255)        r.hr   = hr;
+          if (cad !== undefined && cad < 255)        r.cad  = cad * 2;  // raw = steps/2/min
+          if (spd !== undefined && spd < 0xFFFF)     r.spd  = spd / 1000;  // mm/s → m/s
+          if (dist !== undefined && dist < 0xFFFFFFFE) r.dist = dist / 100; // cm → m
+          if (pwr !== undefined && pwr < 0xFFFF)     r.pwr  = pwr;
+          if (alt !== undefined && alt < 0xFFFF)     r.alt  = (alt / 5) - 500;
+          res.records.push(r);
+        }
+      }
+      // message 19 = lap
+      if (def.gm === 19) res.laps.push(rec);
+      // message 18 = session
+      if (def.gm === 18) res.session = rec;
+    }
+  }
+  return res;
+}
+
+// ── ANALYTICS ────────────────────────────────────────────────────
+function analyze(raw, filename) {
+  const { records, laps, session } = raw;
+  if (!records.length) throw new Error('Tidak ada data rekaman');
+
+  const hrArr  = records.filter(r => r.hr  !== undefined && r.hr  > 0 && r.hr < 250).map(r => r.hr);
+  const cadArr = records.filter(r => r.cad !== undefined && r.cad > 0 && r.cad < 250).map(r => r.cad);
+  // speed: exclude 0xFFFF (65535 raw = invalid), max realistic running ~7 m/s (~25 km/h)
+  const spdArr = records.filter(r => r.spd !== undefined && r.spd > 0.2 && r.spd < 7).map(r => r.spd);
+  const tStart = records[0].t;
+  const tEnd   = records[records.length-1].t;
+  const duration = tEnd - tStart; // ms
+
+  const avgHR  = hrArr.length  ? Math.round(hrArr.reduce((a,b)=>a+b,0)/hrArr.length)  : 0;
+  const maxHR  = hrArr.length  ? Math.max(...hrArr) : 0;
+  const avgCad = cadArr.length ? Math.round(cadArr.reduce((a,b)=>a+b,0)/cadArr.length) : 0;
+  const avgSpd = spdArr.length ? spdArr.reduce((a,b)=>a+b,0)/spdArr.length : 0;
+
+  // distance — from records if GPS, fallback to session field 9 (treadmill/indoor)
+  const distRec = records.filter(r => r.dist !== undefined && r.dist > 0);
+  let totalDist = distRec.length ? distRec[distRec.length-1].dist : 0; // meters
+  if (totalDist === 0 && session[9] && session[9] < 0xFFFFFFFE) {
+    totalDist = session[9] / 100; // cm → meters
+  }
+
+  // pace: from speed records, or derive from session distance + timer if treadmill
+  let avgPace = avgSpd > 0 ? 1000/avgSpd/60 : 0;
+  if (avgPace === 0 && totalDist > 0 && duration > 0) {
+    avgPace = (duration / 1000 / 60) / (totalDist / 1000); // min/km
+  }
+
+  // HR zones (% of maxHR 193)
+  const MHR = 193;
+  const zones = [0,0,0,0,0];
+  hrArr.forEach(h => {
+    const p = h/MHR*100;
+    if (p < 60) zones[0]++;
+    else if (p < 70) zones[1]++;
+    else if (p < 80) zones[2]++;
+    else if (p < 90) zones[3]++;
+    else zones[4]++;
+  });
+  const zTotal = zones.reduce((a,b)=>a+b,0);
+  const zonePct = zones.map(z => zTotal ? Math.round(z/zTotal*100) : 0);
+
+  // VO2max estimation (Daniels/Jones formula via HR ratio)
+  // vo2max ≈ (speed_m_per_min / (0.8 + 0.1894393*e^(-0.012778*t) + 0.2989558*e^(-0.1932605*t))) * (0.8830 + (%VO2 reserve))
+  // Simpler: Firstbeat method: vo2max = 15 * (maxHR/restHR), or pace-HR index
+  // Using: vo2max = (avgSpd*60/1000) / (avgHR/MHR) * 15  (rough estimate)
+  let vo2max = 0;
+  if (avgSpd > 0 && avgHR > 0 && duration > 600000) {
+    const paceVO2 = avgSpd * 60; // m/min
+    // VO2 at pace (ml/kg/min) = 3.5 + (0.2*pace_m_min) for level running
+    const vo2AtPace = 3.5 + 0.2 * paceVO2;
+    // % VO2max = %HRR = (avgHR - 60) / (MHR - 60)
+    const hrReserve = Math.min(1, Math.max(0.3, (avgHR - 60) / (MHR - 60)));
+    vo2max = Math.round(vo2AtPace / hrReserve);
+    vo2max = Math.min(85, Math.max(25, vo2max)); // reasonable bounds
+  }
+
+  // TRIMP (Banister)
+  let trimp = 0;
+  if (avgHR > 0 && duration > 0) {
+    const restHR = 55;
+    const hrr = (avgHR - restHR) / (MHR - restHR);
+    const durationMin = duration / 60000;
+    trimp = Math.round(durationMin * hrr * 0.64 * Math.exp(1.92 * hrr));
+  }
+
+  // Race predictions (Riegel formula: T2 = T1 * (D2/D1)^1.06)
+  const races = {};
+  if (totalDist > 3000 && duration > 0 && avgSpd > 0) {
+    const dists = {
+      '5K': 5000, '10K': 10000, 'Half': 21097, 'Full': 42195
+    };
+    const refSpeed = avgSpd; // assume steady effort
+    // Adjust for race effort using HR: race pace ≈ current pace * (maxHR/avgHR)^0.5
+    const raceSpeedAdj = refSpeed * Math.sqrt(MHR / Math.max(avgHR, MHR * 0.7));
+    Object.entries(dists).forEach(([name, dist]) => {
+      const baseTime = dist / raceSpeedAdj; // seconds
+      // Riegel fatigue: T2 = T1 * (D2/D1)^1.06
+      const refDist = totalDist;
+      const refTime = duration / 1000;
+      const predTime = refTime * Math.pow(dist / refDist, 1.06);
+      races[name] = Math.round(predTime);
+    });
+  }
+
+  // Lap data
+  const lapData = laps.map((lap, i) => {
+    const lapDist = (lap[9] || 0) / 100000;  // cm → km
+    const lapTime = (lap[7] || 0) / 1000;    // ms → s
+    const lapPace = lapDist > 0 && lapTime > 0 ? (lapTime/60/lapDist) : 0;
+    const lapHR   = lap[16] || 0;
+    const lapCad  = lap[53] ? lap[53] * 2 : 0; // avg_cadence
+    return { n: i+1, dist: lapDist, time: lapTime, pace: lapPace, hr: lapHR, cad: lapCad };
+  });
+
+  // MAF analysis (MAF = 152)
+  const mafHR = 152;
+  const mafCount = hrArr.filter(h => h <= mafHR + 5).length;
+  const mafPct = hrArr.length ? Math.round(mafCount / hrArr.length * 100) : 0;
+
+  // Downsample records for chart (max 80 pts)
+  const step = Math.max(1, Math.floor(records.length / 80));
+  const chartData = records.filter((_, i) => i % step === 0);
+
+  return {
+    id: Date.now() + Math.random(),
+    filename, date: tStart,
+    duration, totalDist, avgHR, maxHR, avgCad, avgSpd, avgPace,
+    zones, zonePct, vo2max, trimp, races, lapData, mafPct, mafHR,
+    chartData
+  };
+}
+
+// ── IMPORT ───────────────────────────────────────────────────────
+function importFile(e) {
+  const file = e.target.files[0];
+  e.target.value = '';
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      const raw = parseFIT(ev.target.result);
+      const act = analyze(raw, file.name);
+      db.unshift(act);
+      save();
+      toast('✅ ' + file.name + ' diimport!');
+      if (document.getElementById('app').style.display === 'none') {
+        initApp();
+      } else {
+        renderDashboard();
+        renderActivities();
+        renderTrends();
+        openDetail(act.id);
+      }
+    } catch(err) {
+      toast('❌ ' + err.message);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+// ── INIT ─────────────────────────────────────────────────────────
+function initApp() {
+  document.getElementById('empty-state').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  renderDashboard();
+  renderActivities();
+  renderTrends();
+}
+
+function toggleTheme() {
+  const isLight = document.documentElement.classList.toggle('light');
+  localStorage.setItem('pacelab_theme', isLight ? 'light' : 'dark');
+  document.getElementById('theme-btn').textContent = isLight ? '☀️' : '🌙';
+}
+
+window.addEventListener('load', () => {
+  // Apply saved theme
+  const saved = localStorage.getItem('pacelab_theme');
+  if (saved === 'light') {
+    document.documentElement.classList.add('light');
+    const btn = document.getElementById('theme-btn');
+    if (btn) btn.textContent = '☀️';
+  }
+  if (db.length > 0) {
+    document.getElementById('history-hint').textContent = db.length + ' aktivitas tersimpan — import untuk tambah lagi';
+    initApp();
+  }
+});
+
+// ── DASHBOARD ────────────────────────────────────────────────────
+function renderDashboard() {
+  if (!db.length) return;
+  const runs = db.filter(a => a.totalDist > 500);
+  const recent = runs[0];
+  const last30 = runs.filter(a => Date.now() - a.date < 30*86400000);
+  const totalDist = last30.reduce((s, a) => s + a.totalDist / 1000, 0);
+  const totalTime = last30.reduce((s, a) => s + a.duration, 0);
+  const avgVO2 = runs.filter(a => a.vo2max > 0);
+  const latestVO2 = avgVO2.length ? avgVO2[0].vo2max : 0;
+  const avgPaces = last30.filter(a => a.avgPace > 0).map(a => a.avgPace);
+  const avgPace = avgPaces.length ? avgPaces.reduce((a,b)=>a+b,0)/avgPaces.length : 0;
+
+  let html = '';
+
+  // VO2max highlight
+  if (latestVO2) {
+    const cat = vo2Cat(latestVO2);
+    html += `<div class="card" style="border-top:2px solid var(--cyan)">
+      <div class="card-title">VO₂max estimasi — ${recent.filename}</div>
+      <div class="vo2-wrap">
+        <div class="vo2-ring">
+          ${vo2Ring(latestVO2)}
+          <div class="vo2-ring-val"><div class="vo2-num">${latestVO2}</div><div class="vo2-unit">ml/kg/min</div></div>
+        </div>
+        <div class="vo2-info">
+          <div class="vo2-cat" style="color:${cat.color}">${cat.label}</div>
+          <div class="vo2-desc">${cat.desc}</div>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  // 30-day stats
+  html += `<div class="sg">
+    <div class="sbox sbox-accent"><div class="sbox-l">Jarak 30hr</div><div class="sbox-v">${totalDist.toFixed(1)}<span class="sbox-u">km</span></div></div>
+    <div class="sbox"><div class="sbox-l">Sesi</div><div class="sbox-v">${last30.length}<span class="sbox-u">lari</span></div></div>
+    <div class="sbox"><div class="sbox-l">Waktu aktif</div><div class="sbox-v">${fmtDur(totalTime)}</div></div>
+    <div class="sbox"><div class="sbox-l">Avg pace</div><div class="sbox-v">${avgPace>0?fmtPace(avgPace):'—'}<span class="sbox-u">${avgPace>0?'/km':''}</span></div></div>
+  </div>`;
+
+  // Race predictions from best recent run
+  if (recent && Object.keys(recent.races||{}).length) {
+    html += `<div class="card"><div class="card-title">Prediksi race — dari aktivitas terakhir</div>
+      <div class="race-grid">`;
+    Object.entries(recent.races).forEach(([name, sec]) => {
+      const pace = sec / (({
+        '5K':5,'10K':10,'Half':21.097,'Full':42.195
+      }[name] || 10));
+      html += `<div class="race-box">
+        <div class="race-dist">${name}</div>
+        <div class="race-time">${fmtTime(sec)}</div>
+        <div class="race-pace">${fmtPace(pace/60)}/km</div>
+      </div>`;
+    });
+    html += `</div></div>`;
+  }
+
+  // Recent activities
+  html += `<div style="font-size:.68rem;text-transform:uppercase;letter-spacing:.1em;color:var(--dim);margin:.5rem 0 .6rem">Terbaru</div>`;
+  runs.slice(0, 4).forEach(a => { html += actRow(a); });
+
+  document.getElementById('db-content').innerHTML = html;
+}
+
+// ── ACTIVITIES ───────────────────────────────────────────────────
+function renderActivities() {
+  if (!db.length) {
+    document.getElementById('act-list').innerHTML = `<div class="empty-pane"><div class="ei">🏁</div><p>Belum ada aktivitas.<br>Import file FIT dari COROS untuk mulai.</p></div>`;
+    return;
+  }
+  let html = '';
+  let lastMonth = '';
+  db.forEach(a => {
+    const m = new Date(a.date).toLocaleDateString('id-ID', {month:'long', year:'numeric'});
+    if (m !== lastMonth) {
+      html += `<div style="font-size:.68rem;text-transform:uppercase;letter-spacing:.1em;color:var(--dim);margin:.8rem 0 .5rem">${m}</div>`;
+      lastMonth = m;
+    }
+    html += actRow(a);
+  });
+  document.getElementById('act-list').innerHTML = html;
+}
+
+function actRow(a) {
+  const d = new Date(a.date);
+  const ds = d.toLocaleDateString('id-ID', {weekday:'short', day:'numeric', month:'short'});
+  const dist = a.totalDist > 0 ? (a.totalDist/1000).toFixed(2)+' km' : '—';
+  return `<div class="act-row" onclick="openDetail('${a.id}')">
+    <div class="act-ico">🏃</div>
+    <div class="act-mid">
+      <div class="act-name">${a.filename.replace('.fit','')}</div>
+      <div class="act-meta">${ds} · ${fmtDur(a.duration)}${a.avgHR ? ' · ❤️ '+a.avgHR+' bpm' : ''}</div>
+    </div>
+    <div class="act-right">
+      <div class="act-dist">${dist}</div>
+      <div class="act-pace">${a.avgPace>0?fmtPace(a.avgPace)+'/km':'—'}</div>
+    </div>
+  </div>`;
+}
+
+// ── TRENDS ───────────────────────────────────────────────────────
+function renderTrends() {
+  const runs = db.filter(a => a.totalDist > 500).slice(0, 15).reverse();
+  if (runs.length < 2) {
+    document.getElementById('trends-content').innerHTML = `<div class="empty-pane"><div class="ei">📈</div><p>Import minimal 2 aktivitas<br>untuk melihat tren.</p></div>`;
+    return;
+  }
+
+  let html = '';
+
+  // VO2max trend
+  const vo2runs = runs.filter(a => a.vo2max > 0);
+  if (vo2runs.length > 1) {
+    html += `<div class="card"><div class="card-title">Tren VO₂max</div>
+      <div style="height:130px"><canvas id="chart-vo2"></canvas></div>
+      <div class="trend-row" style="margin-top:.5rem">`;
+    const first = vo2runs[0].vo2max, last = vo2runs[vo2runs.length-1].vo2max;
+    const delta = last - first;
+    html += `<span class="trend-date">Progress ${vo2runs.length} sesi</span>
+      <span class="trimp-chip ${delta>0?'load-easy':delta<0?'load-max':'load-mod'}">${delta>0?'+':''}${delta} ml/kg/min</span>`;
+    html += `</div></div>`;
+  }
+
+  // Pace trend
+  const paceRuns = runs.filter(a => a.avgPace > 0);
+  if (paceRuns.length > 1) {
+    html += `<div class="card"><div class="card-title">Tren avg pace</div>
+      <div style="height:130px"><canvas id="chart-pace"></canvas></div></div>`;
+  }
+
+  // MAF efficiency trend
+  const mafRuns = runs.filter(a => a.avgHR > 0 && a.avgPace > 0);
+  if (mafRuns.length > 1) {
+    html += `<div class="card"><div class="card-title">Aerobic efficiency (pace @ HR)</div>
+      <div class="trend-row" style="border-bottom:1px solid var(--line);margin-bottom:.3rem;padding-bottom:.4rem">
+        <span style="font-size:.7rem;color:var(--dim)">Tanggal</span>
+        <span style="font-size:.7rem;color:var(--dim)">HR avg</span>
+        <span style="font-size:.7rem;color:var(--dim)">Pace avg</span>
+      </div>`;
+    mafRuns.slice(-6).forEach((a, i) => {
+      const prev = mafRuns[i - 1];
+      let deltaHtml = '';
+      if (prev) {
+        const d = a.avgPace - prev.avgPace;
+        deltaHtml = `<span class="trend-delta ${d<0?'up':d>0?'dn':'eq'}">${d<0?'▲':'▼'} ${Math.abs(d).toFixed(2)}</span>`;
+      }
+      html += `<div class="trend-row">
+        <span class="trend-date">${new Date(a.date).toLocaleDateString('id-ID',{day:'numeric',month:'short'})}</span>
+        <span class="trend-val">${a.avgHR} bpm</span>
+        <span style="display:flex;gap:.4rem;align-items:center"><span class="trend-val">${fmtPace(a.avgPace)}</span>${deltaHtml}</span>
+      </div>`;
+    });
+    html += `</div>`;
+  }
+
+  // TRIMP history
+  html += `<div class="card"><div class="card-title">Training load (TRIMP)</div>`;
+  runs.slice(-8).forEach(a => {
+    const cls = a.trimp > 100 ? 'load-max' : a.trimp > 60 ? 'load-hard' : a.trimp > 30 ? 'load-mod' : 'load-easy';
+    html += `<div class="trend-row">
+      <span class="trend-date">${new Date(a.date).toLocaleDateString('id-ID',{day:'numeric',month:'short'})}</span>
+      <span style="font-size:.75rem;color:var(--sub)">${(a.totalDist/1000).toFixed(1)} km · ${fmtDur(a.duration)}</span>
+      <span class="trimp-chip ${cls}">${a.trimp} AU</span>
+    </div>`;
+  });
+  html += `</div>`;
+
+  document.getElementById('trends-content').innerHTML = html;
+
+  // Draw charts after DOM update
+  setTimeout(() => {
+    if (vo2runs.length > 1) {
+      const ctx = document.getElementById('chart-vo2');
+      if (ctx) drawLineChart(ctx, vo2runs.map(a => new Date(a.date).toLocaleDateString('id-ID',{day:'numeric',month:'short'})), vo2runs.map(a => a.vo2max), '#00e5c3', 'VO₂max');
+    }
+    if (paceRuns.length > 1) {
+      const ctx = document.getElementById('chart-pace');
+      if (ctx) drawLineChart(ctx, paceRuns.map(a => new Date(a.date).toLocaleDateString('id-ID',{day:'numeric',month:'short'})), paceRuns.map(a => +a.avgPace.toFixed(2)), '#7c6af7', 'Pace');
+    }
+  }, 50);
+}
+
+// ── DETAIL SHEET ─────────────────────────────────────────────────
+const sheetTabs = ['Ringkasan','Grafik','Lap','Analisis'];
+let currentAct = null, sheetTab = 0;
+let chartInstances = [];
+
+function openDetail(id) {
+  currentAct = db.find(a => String(a.id) === String(id));
+  if (!currentAct) return;
+  sheetTab = 0;
+  renderSheet();
+  document.getElementById('overlay').classList.add('on');
+}
+
+function renderSheet() {
+  const a = currentAct;
+  // nav
+  document.getElementById('sheet-nav').innerHTML = sheetTabs.map((t, i) =>
+    `<button class="snav-btn ${i===sheetTab?'on':''}" onclick="setSheetTab(${i})">${t}</button>`
+  ).join('');
+  // destroy old charts
+  chartInstances.forEach(c => c.destroy());
+  chartInstances = [];
+  // content
+  const body = document.getElementById('sheet-body');
+  if (sheetTab === 0) body.innerHTML = renderSummary(a);
+  else if (sheetTab === 1) { body.innerHTML = renderCharts(a); setTimeout(() => drawDetailCharts(a), 50); }
+  else if (sheetTab === 2) body.innerHTML = renderLaps(a);
+  else if (sheetTab === 3) body.innerHTML = renderAnalysis(a);
+}
+
+function setSheetTab(i) { sheetTab = i; renderSheet(); }
+
+function renderSummary(a) {
+  const d = new Date(a.date);
+  return `
+    <div style="font-size:1rem;font-weight:600;margin-bottom:.15rem">${a.filename.replace('.fit','')}</div>
+    <div style="font-size:.78rem;color:var(--dim);margin-bottom:1rem">${d.toLocaleDateString('id-ID',{weekday:'long',day:'numeric',month:'long',year:'numeric'})} · ${d.toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'})}</div>
+    <div class="sg3">
+      <div class="sbox"><div class="sbox-l">Jarak</div><div class="sbox-v" style="color:var(--cyan)">${(a.totalDist/1000).toFixed(2)}<span class="sbox-u">km</span></div></div>
+      <div class="sbox"><div class="sbox-l">Durasi</div><div class="sbox-v">${fmtDur(a.duration)}</div></div>
+      <div class="sbox"><div class="sbox-l">Avg Pace</div><div class="sbox-v">${a.avgPace>0?fmtPace(a.avgPace):'—'}</div></div>
+      <div class="sbox"><div class="sbox-l">Avg HR</div><div class="sbox-v" style="color:var(--amber)">${a.avgHR||'—'}<span class="sbox-u">${a.avgHR?'bpm':''}</span></div></div>
+      <div class="sbox"><div class="sbox-l">Max HR</div><div class="sbox-v">${a.maxHR||'—'}<span class="sbox-u">${a.maxHR?'bpm':''}</span></div></div>
+      <div class="sbox"><div class="sbox-l">Cadence</div><div class="sbox-v" style="color:var(--violet)">${a.avgCad||'—'}<span class="sbox-u">${a.avgCad?'spm':''}</span></div></div>
+    </div>
+    ${a.vo2max ? `<div class="card" style="border-left:3px solid var(--cyan)">
+      <div class="card-title">VO₂max estimasi</div>
+      <div style="display:flex;align-items:center;gap:.8rem">
+        <div style="font-family:'DM Mono',monospace;font-size:2rem;font-weight:500;color:var(--cyan)">${a.vo2max}</div>
+        <div><div style="font-size:.85rem;font-weight:600;color:${vo2Cat(a.vo2max).color}">${vo2Cat(a.vo2max).label}</div><div style="font-size:.72rem;color:var(--dim)">ml/kg/min</div></div>
+      </div>
+    </div>` : ''}
+    ${a.trimp ? `<div style="display:flex;align-items:center;justify-content:space-between;padding:.5rem 0">
+      <span style="font-size:.8rem;color:var(--sub)">Training load (TRIMP)</span>
+      <span class="trimp-chip ${a.trimp>100?'load-max':a.trimp>60?'load-hard':a.trimp>30?'load-mod':'load-easy'}">${a.trimp} AU</span>
+    </div>` : ''}
+    <div style="margin-top:.5rem;display:flex;justify-content:flex-end">
+      <button class="btn-del" onclick="deleteAct('${a.id}')">Hapus aktivitas</button>
+    </div>`;
+}
+
+function renderCharts(a) {
+  const cd = a.chartData || [];
+  const hasHR  = cd.some(r => r.hr  !== undefined);
+  const hasCad = cd.some(r => r.cad !== undefined);
+  const hasSpd = cd.some(r => r.spd !== undefined && r.spd > 0);
+  const hasAlt = cd.some(r => r.alt !== undefined);
+  let html = '';
+  if (hasHR)  html += `<div class="card"><div class="card-title">Heart rate</div><div class="chart-wrap"><canvas id="c-hr"></canvas></div></div>`;
+  if (hasCad) html += `<div class="card"><div class="card-title">Cadence (spm)</div><div class="chart-wrap"><canvas id="c-cad"></canvas></div></div>`;
+  if (hasSpd) html += `<div class="card"><div class="card-title">Pace (/km)</div><div class="chart-wrap"><canvas id="c-pace"></canvas></div></div>`;
+  if (hasAlt) html += `<div class="card"><div class="card-title">Elevasi (m)</div><div class="chart-wrap"><canvas id="c-alt"></canvas></div></div>`;
+  if (!html)  html = `<div class="empty-pane"><div class="ei">📊</div><p>Tidak ada data grafik tersedia.</p></div>`;
+  return html;
+}
+
+function drawDetailCharts(a) {
+  const cd = a.chartData || [];
+  const tBase = cd.length ? cd[0].t : 0;
+  const xl = cd.map(r => fmtDur(r.t - tBase));
+
+  function mk(id, vals, color, yMin, yMax, reversed) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const c = new Chart(el.getContext('2d'), {
+      type: 'line',
+      data: { labels: xl, datasets: [{ data: vals, borderColor: color, backgroundColor: color+'18', borderWidth: 1.5, pointRadius: 0, fill: true, tension: 0.35 }] },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { grid:{color:'rgba(255,255,255,.03)'}, ticks:{color:'#55556a',font:{size:9},maxTicksLimit:5} },
+          y: { grid:{color:'rgba(255,255,255,.03)'}, ticks:{color:'#55556a',font:{size:9}}, ...(yMin!=null?{min:yMin}:{}), ...(yMax!=null?{max:yMax}:{}), reverse: !!reversed }
+        }
+      }
+    });
+    chartInstances.push(c);
+  }
+
+  if (cd.some(r=>r.hr  !== undefined)) mk('c-hr',  cd.map(r=>r.hr  !== undefined ? r.hr  : null), '#f5a623', 50, 210);
+  if (cd.some(r=>r.cad !== undefined)) mk('c-cad', cd.map(r=>r.cad !== undefined ? r.cad : null), '#7c6af7', 100, 230);
+  if (cd.some(r=>r.spd !== undefined && r.spd > 0)) {
+    const paceVals = cd.map(r => r.spd && r.spd > 0.3 ? +(1000/r.spd/60).toFixed(2) : null);
+    mk('c-pace', paceVals, '#00e5c3', 3, 15, true); // reversed: faster pace on top
+  }
+  if (cd.some(r=>r.alt !== undefined)) mk('c-alt', cd.map(r=>r.alt!==undefined?Math.round(r.alt):null), '#22c55e');
+}
+
+function renderLaps(a) {
+  const laps = a.lapData || [];
+  if (!laps.length) return `<div class="empty-pane"><div class="ei">🔄</div><p>Tidak ada data lap.<br>Pastikan recording menggunakan Auto Lap.</p></div>`;
+
+  let html = `<table class="lap-table">
+    <thead><tr>
+      <th>Lap</th><th>Dist</th><th>Pace</th><th>HR</th><th>Cad</th>
+    </tr></thead><tbody>`;
+  laps.forEach(lap => {
+    const zone = hrZoneColor(lap.hr);
+    html += `<tr>
+      <td>${lap.n}</td>
+      <td>${lap.dist > 0 ? lap.dist.toFixed(2)+' km' : '—'}</td>
+      <td style="font-family:'DM Mono',monospace;color:var(--cyan)">${lap.pace > 0 ? fmtPace(lap.pace) : '—'}</td>
+      <td style="color:${zone}">${lap.hr > 0 ? lap.hr+' bpm' : '—'}</td>
+      <td>${lap.cad > 0 ? lap.cad : '—'}</td>
+    </tr>`;
+  });
+  html += `</tbody></table>`;
+
+  // Best/worst lap
+  const pLaps = laps.filter(l => l.pace > 0);
+  if (pLaps.length > 1) {
+    const best = pLaps.reduce((m, l) => l.pace < m.pace ? l : m);
+    const worst = pLaps.reduce((m, l) => l.pace > m.pace ? l : m);
+    html += `<div style="display:flex;gap:.5rem;margin-top:.8rem">
+      <div class="sbox" style="flex:1;border-top:2px solid var(--z2)"><div class="sbox-l">Lap tercepat</div><div class="sbox-v" style="color:var(--z2)">${fmtPace(best.pace)}<span class="sbox-u">/km</span></div><div style="font-size:.7rem;color:var(--dim)">Lap ${best.n}</div></div>
+      <div class="sbox" style="flex:1;border-top:2px solid var(--z4)"><div class="sbox-l">Lap terlambat</div><div class="sbox-v" style="color:var(--z4)">${fmtPace(worst.pace)}<span class="sbox-u">/km</span></div><div style="font-size:.7rem;color:var(--dim)">Lap ${worst.n}</div></div>
+    </div>`;
+  }
+  return html;
+}
+
+function renderAnalysis(a) {
+  let html = '';
+
+  // HR zones
+  if (a.zones && a.zonePct) {
+    const zColors = ['var(--z1)','var(--z2)','var(--z3)','var(--z4)','var(--z5)'];
+    const zNames = ['Z1 Recovery','Z2 Aerobik','Z3 Tempo','Z4 Threshold','Z5 Anaerobic'];
+    html += `<div class="card"><div class="card-title">Distribusi HR Zone</div><div class="zone-bars">`;
+    zNames.forEach((name, i) => {
+      html += `<div class="zone-row">
+        <div class="zone-label" style="color:${zColors[i]}">Z${i+1}</div>
+        <div class="zone-bar-bg"><div class="zone-bar-fill" style="width:${a.zonePct[i]}%;background:${zColors[i]}"></div></div>
+        <div class="zone-pct">${a.zonePct[i]}%</div>
+      </div>`;
+    });
+    html += `</div></div>`;
+  }
+
+  // MAF
+  html += `<div class="card"><div class="card-title">MAF Analysis (MAF HR: ${a.mafHR} bpm)</div>
+    <div class="maf-labels"><span>Aerobik</span><span>${a.mafPct}%</span></div>
+    <div class="maf-bar-bg"><div class="maf-bar-fill" style="width:${a.mafPct}%"></div></div>
+    <div style="font-size:.75rem;color:var(--sub);margin-top:.4rem;line-height:1.5">
+      ${a.mafPct > 80 ? '✅ Sesi aerobik bagus — mayoritas di zona MAF.' :
+        a.mafPct > 50 ? '⚠️ Campuran aerobik/anaerobik — kurangi intensitas untuk MAF training.' :
+        '🔥 Intensitas tinggi — sesi ini mayoritas anaerobik.'}
+    </div>
+  </div>`;
+
+  // Race pred
+  if (a.races && Object.keys(a.races).length) {
+    html += `<div class="card"><div class="card-title">Prediksi race (Riegel formula)</div><div class="race-grid">`;
+    Object.entries(a.races).forEach(([name, sec]) => {
+      const distKm = {
+        '5K':5,'10K':10,'Half':21.097,'Full':42.195
+      }[name] || 10;
+      const paceMin = (sec/60) / distKm;
+      html += `<div class="race-box">
+        <div class="race-dist">${name}</div>
+        <div class="race-time">${fmtTime(sec)}</div>
+        <div class="race-pace">${fmtPace(paceMin)}/km</div>
+      </div>`;
+    });
+    html += `</div><div style="font-size:.7rem;color:var(--dim);margin-top:.7rem">Estimasi berdasarkan kecepatan & HR sesi ini. Akurasi meningkat dengan lebih banyak data.</div></div>`;
+  }
+
+  // VO2max detail
+  if (a.vo2max) {
+    const cat = vo2Cat(a.vo2max);
+    html += `<div class="card"><div class="card-title">VO₂max detail</div>
+      <div class="vo2-wrap" style="margin-bottom:.8rem">
+        <div class="vo2-ring">${vo2Ring(a.vo2max)}<div class="vo2-ring-val"><div class="vo2-num">${a.vo2max}</div><div class="vo2-unit">ml/kg/min</div></div></div>
+        <div class="vo2-info"><div class="vo2-cat" style="color:${cat.color}">${cat.label}</div><div class="vo2-desc">${cat.desc}</div></div>
+      </div>
+      <div style="font-size:.72rem;color:var(--dim);line-height:1.6">
+        Dihitung dari avg pace + HR ratio. Untuk akurasi lebih baik, lakukan tes di trek dengan effort stabil minimal 20 menit.
+      </div>
+    </div>`;
+  }
+
+  return html;
+}
+
+// ── HELPERS ──────────────────────────────────────────────────────
+function vo2Cat(v) {
+  if (v >= 60) return { label: 'Superior', color: '#00e5c3', desc: 'Level atlet nasional / kompetitif' };
+  if (v >= 52) return { label: 'Excellent', color: '#22c55e', desc: 'Kebugaran aerobik sangat baik' };
+  if (v >= 44) return { label: 'Good', color: '#84cc16', desc: 'Di atas rata-rata, terus tingkatkan' };
+  if (v >= 36) return { label: 'Fair', color: '#eab308', desc: 'Rata-rata, ada ruang untuk berkembang' };
+  return { label: 'Poor', color: '#f97316', desc: 'Di bawah rata-rata, fokus base building' };
+}
+
+function vo2Ring(v) {
+  const pct = Math.min(100, Math.max(0, (v - 20) / 60 * 100));
+  const r = 34, circ = 2 * Math.PI * r;
+  const filled = circ * pct / 100;
+  return `<svg width="80" height="80" viewBox="0 0 80 80">
+    <circle cx="40" cy="40" r="${r}" fill="none" stroke="#252530" stroke-width="6"/>
+    <circle cx="40" cy="40" r="${r}" fill="none" stroke="#00e5c3" stroke-width="6"
+      stroke-dasharray="${filled} ${circ}" stroke-linecap="round"/>
+  </svg>`;
+}
+
+function hrZoneColor(hr) {
+  if (!hr) return 'var(--dim)';
+  const p = hr/193*100;
+  if (p < 60) return 'var(--z1)';
+  if (p < 70) return 'var(--z2)';
+  if (p < 80) return 'var(--z3)';
+  if (p < 90) return 'var(--z4)';
+  return 'var(--z5)';
+}
+
+function drawLineChart(el, labels, data, color) {
+  const c = new Chart(el.getContext('2d'), {
+    type: 'line',
+    data: { labels, datasets: [{ data, borderColor: color, backgroundColor: color+'20', borderWidth: 2, pointRadius: 3, pointBackgroundColor: color, fill: true, tension: 0.3 }] },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid:{color:'rgba(255,255,255,.03)'}, ticks:{color:'#55556a',font:{size:9}} },
+        y: { grid:{color:'rgba(255,255,255,.03)'}, ticks:{color:'#55556a',font:{size:9}} }
+      }
+    }
+  });
+  chartInstances.push(c);
+}
+
+function deleteAct(id) {
+  if (!confirm('Hapus aktivitas ini?')) return;
+  db = db.filter(a => String(a.id) !== String(id));
+  save();
+  document.getElementById('overlay').classList.remove('on');
+  if (!db.length) {
+    document.getElementById('app').style.display = 'none';
+    document.getElementById('empty-state').style.display = 'flex';
+  } else {
+    renderDashboard(); renderActivities(); renderTrends();
+  }
+  toast('Aktivitas dihapus');
+}
+
+function closeSheet(e) {
+  if (e.target === document.getElementById('overlay')) {
+    document.getElementById('overlay').classList.remove('on');
+    chartInstances.forEach(c => c.destroy());
+    chartInstances = [];
+  }
+}
+
+function fmtDur(ms) {
+  const s = Math.floor(ms/1000), h = Math.floor(s/3600), m = Math.floor((s%3600)/60);
+  return h > 0 ? `${h}j ${m}m` : `${m}m`;
+}
+function fmtPace(p) {
+  const min = Math.floor(p), sec = Math.round((p-min)*60);
+  return `${min}:${sec.toString().padStart(2,'0')}`;
+}
+function fmtTime(sec) {
+  const h = Math.floor(sec/3600), m = Math.floor((sec%3600)/60), s = Math.round(sec%60);
+  return h > 0 ? `${h}:${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}` : `${m}:${s.toString().padStart(2,'0')}`;
+}
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('on');
+  setTimeout(() => t.classList.remove('on'), 2500);
+}
+function goPane(id, el) {
+  document.querySelectorAll('.pane').forEach(p => p.classList.remove('on'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('on'));
+  document.getElementById('pane-'+id).classList.add('on');
+  el.classList.add('on');
+}
+function ev(e) { e.preventDefault(); document.getElementById('drop-hero').classList.add('drag'); }
+function drop(e) { e.preventDefault(); document.getElementById('drop-hero').classList.remove('drag'); const f=e.dataTransfer.files[0]; if(f){document.getElementById('file-input').files=e.dataTransfer.files;importFile({target:{files:e.dataTransfer.files}});} }
+</script>
+</body>
+</html>
